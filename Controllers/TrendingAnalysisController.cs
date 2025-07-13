@@ -1,14 +1,10 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using TrendingAPI.DTOs;
-using TrendingAPI.Services;
 using TrendingAPI.Interfaces;
-
 
 namespace TrendingAPI.Controllers
 {
@@ -16,46 +12,53 @@ namespace TrendingAPI.Controllers
     [Route("api/[controller]")]
     public class TrendingAnalysisController : ControllerBase
     {
-        private readonly ITrendingService _trendingApiService;
+        private readonly ITrendingService _trendingService;
 
-        public TrendingAnalysisController(ITrendingService trendingApiService)
+        public TrendingAnalysisController(ITrendingService trendingService)
         {
-            _trendingApiService = trendingApiService;
+            _trendingService = trendingService;
         }
 
-
-        // to implement here a get base prompt
         [HttpGet("baseprompt_example")]
         public async Task<IActionResult> GetBasePrompt()
         {
             try
             {
-                var basePath = AppContext.BaseDirectory;
-                var jsonPath = Path.Combine(basePath, "..", "..", "Settings", "basePrompt.json");
-                jsonPath = Path.GetFullPath(jsonPath);
-
-                Console.WriteLine($"[LOG] Base Prompt Path mounted: {jsonPath} ");
-                if (!System.IO.File.Exists(jsonPath))
-                {
-                    Console.WriteLine($"[ERROR LOG] The base prompt path was not found {jsonPath}");
-                    return NotFound($"Base prompt not found in: {jsonPath}");
-                }
+                var prompt = await _trendingService.GetBasePromptService();
+                return Ok(new { prompt });
             }
-
-            // please dont run it, possibly null or error occurrence, made this first
-            catch
+            catch (FileNotFoundException ex)
             {
-                return null;
-
+                return NotFound(ex.Message);
             }
-            return null;
+            catch (Exception)
+            {
+                return StatusCode(500, "Erro ao ler o prompt base.");
+            }
         }
 
-        // to implement here a post request -> user prompt -> AI output.
         [HttpPost("output_prompt")]
-        public async Task<IActionResult> GenerateOutput()
+        public async Task<IActionResult> GenerateOutput([FromBody] OptionalTextDTO req)
         {
-            return null;
+            if (string.IsNullOrWhiteSpace(req.UserPrompt))
+                return BadRequest("User prompt não pode ser vazio.");
+
+            try
+            {
+                var basePrompt = await _trendingService.GetBasePromptService();
+                if (string.IsNullOrWhiteSpace(basePrompt))
+                    return BadRequest("Prompt base indisponível.");
+
+                var output = await _trendingService.GenerateAnalysis(req.UserPrompt);
+
+            
+                return Ok(new { output });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Erro ao gerar a análise: {ex.Message}");
+            }
         }
+
     }
 }
