@@ -4,11 +4,8 @@ using System.Text.Json.Serialization;
 namespace TrendingAPI.DTOs;
 
 
-public class GenerateAITextDTO
+public class OptionalTextDTO
 {
-    //FIXED 
-
-    public string BasePrompt { get; set; } = string.Empty;
     //NOT FIXED
     public string UserPrompt { get; set; } = string.Empty;
 
